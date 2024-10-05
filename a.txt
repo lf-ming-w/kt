@@ -1,0 +1,25 @@
+// Mapper
+public class ConsumptionMapper extends Mapper<LongWritable, Text, Text, DoubleWritable> {
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        String[] fields = value.toString().split("\\s+");
+        String year = fields[0];
+        double avgConsumption = Double.parseDouble(fields[fields.length - 1]);
+        context.write(new Text(year), new DoubleWritable(avgConsumption));
+    }
+}
+
+// Reducer
+public class ConsumptionReducer extends Reducer<Text, DoubleWritable, Text, NullWritable> {
+    public void reduce(Text year, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException {
+        double sum = 0;
+        int count = 0;
+        for (DoubleWritable val : values) {
+            sum += val.get();
+            count++;
+        }
+        double avg = sum / count;
+        if (avg > 30) {
+            context.write(year, NullWritable.get());
+        }
+    }
+}
