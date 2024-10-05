@@ -1,25 +1,67 @@
-// Mapper
-public class ConsumptionMapper extends Mapper<LongWritable, Text, Text, DoubleWritable> {
-    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-        String[] fields = value.toString().split("\\s+");
-        String year = fields[0];
-        double avgConsumption = Double.parseDouble(fields[fields.length - 1]);
-        context.write(new Text(year), new DoubleWritable(avgConsumption));
-    }
-}
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;   
 
-// Reducer
-public class ConsumptionReducer extends Reducer<Text, DoubleWritable, Text, NullWritable> {
-    public void reduce(Text year, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException {
-        double sum = 0;
-        int count = 0;
-        for (DoubleWritable val : values) {
-            sum += val.get();
-            count++;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;   
+
+
+public class PowerConsumption {
+    public static class Map extends Mapper<Object, Text, Text, IntWritable> {
+        private Text year = new Text();
+        private IntWritable avg = new IntWritable();
+
+        public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
+            // ... (code to parse the input line and extract year and average)
+            year.set(yearString);
+            avg.set(average);
+            context.write(year, avg);
         }
-        double avg = sum / count;
-        if (avg > 30) {
-            context.write(year, NullWritable.get());
+    }
+
+    public static class Reduce extends Reducer<Text, IntWritable, Text, IntWritable> {
+        private IntWritable result = new IntWritable();
+
+        public void reduce(Text   
+ key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException   
+ {
+            int sum = 0;
+            int count = 0;
+            for (IntWritable val : values) {
+                sum += val.get();
+                count++;
+            }
+            double   
+ average = (double) sum / count;
+            if (average > 30) {
+                result.set((int) average);
+                context.write(key, result);
+            }
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();   
+
+        Job job = Job.getInstance(conf,   
+ "power consumption");
+        job.setJarByClass(PowerConsumption.class);
+        job.setMapperClass(Map.class);
+        job.setCombinerClass(Reduce.class);
+        job.setReducerClass(Reduce.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);   
+
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);   
+
+        TextInputFormat.setInputPaths(job, new Path(args[0]));
+        TextOutputFormat.setOutputPath(job, new Path(args[1]));
+        System.exit(job.waitForCompletion(true)   
+ ? 0 : 1);
     }
 }
